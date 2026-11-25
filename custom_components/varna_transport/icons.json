@@ -1,0 +1,10 @@
+{
+  "entity": {
+    "sensor": {
+      "next_departure": { "default": "mdi:bus-clock" },
+      "next_departure_minutes": { "default": "mdi:timer-sand" },
+      "line": { "default": "mdi:bus" },
+      "data_source": { "default": "mdi:database-sync" }
+    }
+  }
+}
