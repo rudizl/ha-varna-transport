@@ -6,7 +6,7 @@ from datetime import time, timedelta
 from typing import Final
 
 DOMAIN: Final = "varna_transport"
-VERSION: Final = "0.1.0"
+VERSION: Final = "0.1.1"
 
 USER_AGENT: Final = f"ha-varna-transport/{VERSION} (+https://github.com/rudizl/ha-varna-transport)"
 

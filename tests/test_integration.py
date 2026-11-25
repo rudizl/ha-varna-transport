@@ -190,3 +190,33 @@ async def test_without_fallback_no_livetransport_calls(hass: HomeAssistant) -> N
         await hass.async_block_till_done()
     lt.assert_not_called()
     assert cfg.state is config_entries.ConfigEntryState.SETUP_RETRY
+
+
+async def test_diagnostics_probe_both_sources(hass: HomeAssistant) -> None:
+    from custom_components.varna_transport.diagnostics import (
+        async_get_config_entry_diagnostics,
+    )
+
+    cfg = entry()
+    cfg.add_to_hass(hass)
+    vt = AsyncMock(return_value=board("varnatraffic", ("109", 4, True)))
+    lt = AsyncMock(return_value=board("livetransport", ("109", 6, True)))
+    with (
+        patch(f"{API}.VarnaTrafficClient.departures", vt),
+        patch(f"{API}.LiveTransportClient.departures", lt),
+    ):
+        assert await hass.config_entries.async_setup(cfg.entry_id)
+        await hass.async_block_till_done()
+        lt.assert_not_called()
+
+        diag = await async_get_config_entry_diagnostics(hass, cfg)
+        assert diag["probe"]["livetransport"]["ok"] is True
+        assert diag["probe"]["livetransport"]["departures"][0]["line"] == "109"
+        lt.assert_called_once_with("1080")
+
+        lt.side_effect = TransportConnectionError("HTTP 520")
+        diag = await async_get_config_entry_diagnostics(hass, cfg)
+        assert diag["probe"]["livetransport"] == {"stop": "1080", "ok": False, "error": "HTTP 520"}
+        # A probe does not count as a failure of the running source.
+        assert diag["health"]["livetransport"]["failures"] == "0"
+        assert diag["active_source"] == "varnatraffic"
