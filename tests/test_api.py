@@ -1,4 +1,4 @@
-"""Parser tests on real (varnatraffic) and shaped (livetransport) answers."""
+"""Parser tests on real answers of both sources."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from custom_components.varna_transport.api import (
     _parse_distance,
     _parse_signed_mmss,
     normalize_line,
+    parse_line_names,
     parse_livetransport,
     parse_varnatraffic,
 )
@@ -30,7 +31,7 @@ def load(name: str):
 
 @pytest.mark.parametrize(
     ("raw", "expected"),
-    [("14a", "14а"), ("14A", "14а"), ("209б", "209б"), (" 9 ", "9"), (109, "109")],
+    [("14a", "14а"), ("14A", "14а"), ("209б", "209б"), (" 9 ", "9"), (109, "109"), (None, "")],
 )
 def test_normalize_line(raw, expected):
     assert normalize_line(raw) == expected
@@ -38,7 +39,7 @@ def test_normalize_line(raw, expected):
 
 @pytest.mark.parametrize(
     ("raw", "expected"),
-    [("+1:31", 91), ("-0:40", -40), ("24:47", 1487), ("-", None), (None, None)],
+    [("+1:31", 91), ("-0:40", -40), ("24:47", 1487), ("-", None), (None, None), (150, None)],
 )
 def test_signed_mmss(raw, expected):
     assert _parse_signed_mmss(raw) == expected
@@ -46,18 +47,23 @@ def test_signed_mmss(raw, expected):
 
 @pytest.mark.parametrize(
     ("raw", "expected"),
-    [("9.4км.", 9400), ("845м.", 845), ("~16км.", 16000), ("-", None)],
+    [("9.4км.", 9400), ("845м.", 845), ("~16км.", 16000), ("-", None), (3, None)],
 )
 def test_distance(raw, expected):
     assert _parse_distance(raw) == expected
 
 
-def test_clock_crosses_midnight():
+def test_clock_window():
     late = datetime(2026, 11, 25, 23, 50, tzinfo=TZ)
     assert _parse_clock("00:10", late) == datetime(2026, 11, 26, 0, 10, tzinfo=TZ)
     early = datetime(2026, 11, 26, 0, 10, tzinfo=TZ)
     assert _parse_clock("23:50", early) == datetime(2026, 11, 25, 23, 50, tzinfo=TZ)
+    # Up to 21 hours ahead: the evening timetable is visible in the morning.
+    morning = datetime(2026, 11, 25, 6, 0, tzinfo=TZ)
+    assert _parse_clock("22:45", morning) == datetime(2026, 11, 25, 22, 45, tzinfo=TZ)
     assert _parse_clock("garbage", late) is None
+    assert _parse_clock("24:10", late) is None
+    assert _parse_clock(None, late) is None
 
 
 def test_varnatraffic_station_102():
@@ -66,7 +72,7 @@ def test_varnatraffic_station_102():
     deps = board.departures
 
     assert deps == sorted(deps, key=lambda d: (d.expected, d.line))
-    assert all(d.expected >= now - timedelta(minutes=1) for d in deps)
+    assert all(d.expected >= now for d in deps if not d.live)
 
     # Bus 8606 runs as 17 and 46 at once (line 700); listed for both.
     combined = [d for d in deps if d.vehicle == "8606"]
@@ -82,6 +88,9 @@ def test_varnatraffic_station_102():
     # Schedule slots of buses already listed are not repeated.
     assert sum(1 for d in deps if d.vehicle == "8566") == 1
     assert any(d.line == "17а" for d in deps)
+
+    # One format for every timestamp: Varna time, whole seconds.
+    assert all(d.expected.tzinfo == TZ and d.expected.microsecond == 0 for d in deps)
 
 
 def test_varnatraffic_station_271():
@@ -99,23 +108,82 @@ def test_varnatraffic_station_271():
     assert nine.delay == -135 and nine.distance == 16000
 
 
-def test_varnatraffic_bad_answer():
+def test_varnatraffic_timetable_row_in_the_past_is_dropped():
+    """A bus without countdown whose time has passed is not "0 minutes away"."""
+    now = datetime(2026, 11, 25, 13, 45, 0, tzinfo=UTC)  # 15:45 local
+    deps = parse_varnatraffic(load("varnatraffic_station_102.json"), NAMES, now).departures
+    assert not any(d.vehicle == "8566" for d in deps)  # line 12 at 15:40, no countdown
+
+
+def test_varnatraffic_silent_vehicle_is_not_live():
+    data = load("varnatraffic_station_102.json")
+    for item in data["liveData"]:
+        item["lastComm"] = 900
+    now = datetime(2026, 11, 25, 13, 32, 0, tzinfo=UTC)
+    deps = parse_varnatraffic(data, NAMES, now).departures
+    assert not any(d.live for d in deps)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"error": "x"},
+        {"liveData": {"a": 1}},
+        {"liveData": [{"device": "1_2", "arriveTime": "10:00"}], "schedule": "oops"},
+        {"liveData": [], "schedule": [{"line": 9, "data": [None]}]},
+    ],
+)
+def test_varnatraffic_bad_answers_raise_data_error(data):
     with pytest.raises(TransportDataError):
-        parse_varnatraffic({"error": "x"}, {}, datetime.now(UTC))
+        parse_varnatraffic(data, {}, datetime.now(UTC))
 
 
-def test_livetransport_board():
+def test_livetransport_real_board():
+    now = datetime.fromtimestamp(1795619700, UTC)  # 17:15 local
+    deps = parse_livetransport(load("livetransport_board_1124.json"), now).departures
+
+    # Status 1: on this trip, GPS countdown. Status 2: still on its previous trip.
+    live = [d for d in deps if d.live]
+    assert [d.line for d in live] == ["31а", "409", "9", "109"]
+    first = deps[0]
+    assert first.delay == 248 and first.vehicle == "8661"
+    assert first.expected == first.scheduled + timedelta(seconds=248)
+    assert first.destination == "Аспарухово"
+
+    waiting = [d for d in deps if not d.live]
+    assert len(waiting) == 6
+    assert waiting[0].delay == 86  # carried over from the previous trip
+    assert all(d.vehicle for d in waiting)
+
+
+def test_livetransport_edge_cases():
     now = datetime.fromtimestamp(1795614000, UTC)
     deps = parse_livetransport(load("livetransport_board.json"), now).departures
-
     assert [d.line for d in deps] == ["109", "9", "14а", "9"]  # cancelled trip dropped
-    first = deps[0]
-    assert first.live and first.delay == 94 and first.vehicle == "8577"
-    assert first.destination == "ЖП Гара"
-    assert first.expected == first.scheduled + timedelta(seconds=94)
     assert deps[1].destination == "ЖП Гара"  # plain-string headsign
-    assert deps[2].live  # on its previous trip, still tracked
-    assert not deps[3].live and deps[3].delay is None
+    assert deps[1].live
+    assert not deps[2].live and deps[2].delay == 0  # on previous trip
+    assert not deps[3].live and deps[3].delay is None  # no vehicle
+
+
+def test_livetransport_route_as_string():
+    now = datetime.fromtimestamp(1795614000, UTC)
+    data = load("livetransport_board.json")
+    data["departures"][0][0][2] = "9-3"
+    assert parse_livetransport(data, now).departures[0].line == "9"
+
+
+def test_livetransport_skips_bad_rows_but_not_all():
+    now = datetime.fromtimestamp(1795614000, UTC)
+    data = load("livetransport_board.json")
+    data["departures"][0][0] = ["short", "trip"]  # missing route
+    assert len(parse_livetransport(data, now).departures) == 3
+
+    # Seconds instead of milliseconds in every row: a format change, not "no buses".
+    for dep in data["departures"]:
+        dep[1][0] = dep[1][0] // 1000
+    with pytest.raises(TransportDataError):
+        parse_livetransport(data, now)
 
 
 def test_livetransport_bad_answer():
@@ -123,7 +191,25 @@ def test_livetransport_bad_answer():
         parse_livetransport("<html>520</html>", datetime.now(UTC))
 
 
+def test_line_names_from_home_page():
+    names = parse_line_names((FIXTURES / "varnatraffic_home.html").read_text(encoding="utf-8"))
+    assert names[114] == "14а" and names[1018] == "18а" and names[1118] == "118а"
+    assert names[9] == "9"
+    with pytest.raises(TransportDataError):
+        parse_line_names("<html>maintenance</html>")
+
+
 def test_stop_distance():
     a = Stop("771", "А", 43.26412, 28.0185833)
     assert a.distance_to(43.2642, 28.01865) < 15
     assert Stop("x", "no position").distance_to(43.0, 28.0) == float("inf")
+    assert a.distance_to(None, None) == float("inf")
+
+
+def test_version_matches_manifest():
+    from custom_components.varna_transport.const import VERSION
+
+    manifest = json.loads(
+        (Path(__file__).parents[1] / "custom_components/varna_transport/manifest.json").read_text()
+    )
+    assert manifest["version"] == VERSION

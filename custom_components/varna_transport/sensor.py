@@ -8,6 +8,7 @@ from typing import Any
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.const import EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -42,7 +43,20 @@ async def async_setup_entry(
     ]
     if entry.options.get(CONF_LINE_SENSORS, DEFAULT_LINE_SENSORS):
         entities += [LineSensor(coordinator, line) for line in sorted(coordinator.monitored_lines)]
+
+    # Line sensors for lines no longer watched would stay behind as orphans.
+    wanted = {e.unique_id for e in entities}
+    registry = er.async_get(hass)
+    for reg in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if reg.domain == "sensor" and reg.unique_id not in wanted:
+            registry.async_remove(reg.entity_id)
+
     async_add_entities(entities)
+
+
+def _entry_key(coordinator: VarnaTransportCoordinator) -> str:
+    entry = coordinator.config_entry
+    return entry.unique_id or entry.entry_id
 
 
 class StopEntity(CoordinatorEntity[VarnaTransportCoordinator]):
@@ -50,14 +64,14 @@ class StopEntity(CoordinatorEntity[VarnaTransportCoordinator]):
 
     _attr_has_entity_name = True
     # The board changes every poll; keep it out of the recorder database.
-    _unrecorded_attributes = frozenset({"upcoming"})
+    _unrecorded_attributes = frozenset({"upcoming", "minutes"})
 
     def __init__(self, coordinator: VarnaTransportCoordinator, key: str) -> None:
         super().__init__(coordinator)
         entry = coordinator.config_entry
-        self._attr_unique_id = f"{entry.unique_id}_{key}"
+        self._attr_unique_id = f"{_entry_key(coordinator)}_{key}"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.unique_id or entry.entry_id)},
+            identifiers={(DOMAIN, _entry_key(coordinator))},
             name=entry.data.get(CONF_STOP_NAME, entry.title),
             manufacturer="Varna public transport",
             model="Bus stop",

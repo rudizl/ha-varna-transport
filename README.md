@@ -30,21 +30,26 @@ Add each stop and direction separately. Each one becomes a device.
 | `sensor.<stop>_line_<n>` | Timestamp of the next bus on one line | Only when **One sensor per line** is on |
 | `sensor.<stop>_data_source` | `varnatraffic` or `livetransport` | Diagnostic. Attributes count failures and failovers |
 
-`upcoming` is a list of departures, soonest first:
+`upcoming` is a list of departures, soonest first. All times are Varna local time in whole seconds:
 
 ```yaml
 - line: "109"
-  expected: "2026-11-25T16:08:12+00:00"
-  scheduled: "2026-11-25T16:05:00+02:00"
+  expected: "2026-11-25T18:08:12+02:00"
+  scheduled: "2026-11-25T18:05:00+02:00"
   minutes: 7
   delay: 161          # seconds, negative = early
-  live: true          # false = timetable only, no GPS countdown
+  live: true          # GPS countdown for this very trip
   vehicle: "8563"     # fleet number
   distance: 3100      # metres to the stop (varnatraffic only)
   destination: null   # headsign (livetransport only)
 ```
 
-`upcoming` is not written to the recorder database, because it changes on every poll.
+- `live: false` with a `vehicle` means a bus is assigned but not yet on this trip (waiting at the terminus, or still on its previous trip). The time is the timetable plus any delay carried over.
+- A timetable-only row is dropped once its time has passed. Its bus is late by an unknown amount, so it does not show up as "0 minutes".
+- One bus running two lines at once (varnatraffic line 700) appears as one row, for example `17/46`. A line filter or a line sensor still finds it under each line.
+- Fleet numbers can differ between the sources: varnatraffic `40229` is livetransport `0229`.
+
+`upcoming` and `minutes` are not written to the recorder database, because they change on every poll.
 
 ## Options
 
@@ -59,10 +64,14 @@ Add each stop and direction separately. Each one becomes a device.
 
 - Polling: every 30 s on varnatraffic, every 60 s on livetransport.
 - If varnatraffic fails, the same poll asks livetransport, so no update is skipped.
-- After 3 failures in a row, varnatraffic is skipped for 5 minutes and then tried again.
-- If both fail, the sensors become `unavailable` instead of showing an old board.
+- If varnatraffic keeps failing for a minute without a single success at any stop, it is skipped for 5 minutes and then tried again. A short blip that hits all stops at once does not count as an outage.
+- If both fail, the sensors become `unavailable` instead of showing an old board, and polling slows down to 1, 2, then 5 minutes.
+- A source that answers 403 or 429 is left alone for its `Retry-After` time (at least 5 minutes).
+- Between 00:30 and 04:45 Varna time the stop is checked every 15 minutes, and polling speeds up again right at 04:45.
 
 You can be notified on a switch with an automation on `sensor.<stop>_data_source`.
+
+If livetransport.eu was down when you added a stop, pair it later with **Reconfigure** on the stop's entry.
 
 ## Voice example
 
