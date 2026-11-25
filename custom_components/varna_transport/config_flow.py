@@ -5,9 +5,13 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import (
+    SOURCE_RECONFIGURE,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.core import callback
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     BooleanSelector,
     NumberSelector,
@@ -21,7 +25,7 @@ from homeassistant.helpers.selector import (
 )
 import voluptuous as vol
 
-from .api import LiveTransportClient, Stop, TransportError, VarnaTrafficClient
+from .api import Stop, TransportError
 from .const import (
     CONF_FALLBACK,
     CONF_LATITUDE,
@@ -40,6 +44,7 @@ from .const import (
     DEFAULT_UPCOMING,
     DOMAIN,
 )
+from .coordinator import get_clients
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,7 +69,7 @@ class VarnaTransportConfigFlow(ConfigFlow, domain=DOMAIN):
         """Search by name, or leave empty for stops near home."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            client = VarnaTrafficClient(async_get_clientsession(self.hass))
+            client = get_clients(self.hass).varnatraffic
             query = (user_input.get(CONF_QUERY) or "").strip()
             try:
                 if query:
@@ -110,18 +115,38 @@ class VarnaTransportConfigFlow(ConfigFlow, domain=DOMAIN):
             ),
         )
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Pair (again) with livetransport, e.g. when it was down at setup."""
+        entry = self._get_reconfigure_entry()
+        self._stop = Stop(
+            id=entry.data[CONF_VT_STOP_ID],
+            name=entry.data.get(CONF_STOP_NAME, entry.title),
+            latitude=entry.data.get(CONF_LATITUDE),
+            longitude=entry.data.get(CONF_LONGITUDE),
+        )
+        return await self.async_step_pair()
+
     async def async_step_pair(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Confirm the matching livetransport stop used as fallback."""
         assert self._stop is not None
         if user_input is not None:
             pair = user_input[CONF_PAIR]
-            return self._create(None if pair == NO_PAIR else pair)
+            lt_stop = None if pair == NO_PAIR else pair
+            if self.source == SOURCE_RECONFIGURE:
+                return self.async_update_reload_and_abort(
+                    self._get_reconfigure_entry(),
+                    data_updates={CONF_LT_STOP_ID: lt_stop},
+                )
+            return self._create(lt_stop)
 
         reachable = True
         if not self._candidates:
-            client = LiveTransportClient(async_get_clientsession(self.hass))
             try:
-                self._exact, self._candidates = await client.match_stop(self._stop)
+                self._exact, self._candidates = await get_clients(
+                    self.hass
+                ).livetransport.match_stop(self._stop)
             except TransportError as err:
                 _LOGGER.debug("livetransport unreachable: %s", err)
                 reachable = False
@@ -129,25 +154,27 @@ class VarnaTransportConfigFlow(ConfigFlow, domain=DOMAIN):
         lat, lon = self._stop.latitude, self._stop.longitude
         options = []
         for cand in self._candidates:
-            dist = cand.distance_to(lat, lon) if lat is not None and lon is not None else None
+            dist = cand.distance_to(lat, lon)
+            where = f", {dist:.0f} m" if dist != float("inf") else ""
             mark = " ✓" if cand == self._exact else ""
-            where = f", {dist:.0f} m" if dist is not None and dist != float("inf") else ""
             options.append(
                 SelectOptionDict(
                     value=cand.id, label=f"{cand.name} ({cand.code or cand.id}{where}){mark}"
                 )
             )
         options.append(SelectOptionDict(value=NO_PAIR, label="—"))
-        default = (
-            self._exact.id
+        # Only the exact code match is preselected. The nearest stop is often
+        # the one across the street, for the other direction.
+        key = (
+            vol.Required(CONF_PAIR, default=self._exact.id)
             if self._exact
-            else (self._candidates[0].id if self._candidates else NO_PAIR)
+            else vol.Required(CONF_PAIR)
         )
         return self.async_show_form(
             step_id="pair",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_PAIR, default=default): SelectSelector(
+                    key: SelectSelector(
                         SelectSelectorConfig(options=options, mode=SelectSelectorMode.LIST)
                     )
                 }
@@ -184,35 +211,38 @@ class VarnaTransportConfigFlow(ConfigFlow, domain=DOMAIN):
         return VarnaTransportOptionsFlow()
 
 
+OPTIONS_SCHEMA = vol.Schema(
+    {
+        # Text fields use suggested values, not defaults: an emptied field is
+        # not sent by the frontend, and a default would bring the old value back.
+        vol.Optional(CONF_LINES): TextSelector(),
+        vol.Required(CONF_UPCOMING, default=DEFAULT_UPCOMING): NumberSelector(
+            NumberSelectorConfig(min=1, max=30, step=1, mode=NumberSelectorMode.BOX)
+        ),
+        vol.Required(CONF_LINE_SENSORS, default=DEFAULT_LINE_SENSORS): BooleanSelector(),
+        vol.Required(CONF_FALLBACK, default=DEFAULT_FALLBACK): BooleanSelector(),
+        vol.Required(CONF_NIGHT_PAUSE, default=DEFAULT_NIGHT_PAUSE): BooleanSelector(),
+        vol.Optional(CONF_LINE_NAMES): TextSelector(),
+    }
+)
+
+
 class VarnaTransportOptionsFlow(OptionsFlow):
     """Lines to watch and behaviour."""
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
-            user_input[CONF_UPCOMING] = int(user_input[CONF_UPCOMING])
-            return self.async_create_entry(data=user_input)
-
-        opts = self.config_entry.options
-        schema = vol.Schema(
-            {
-                vol.Optional(CONF_LINES, default=opts.get(CONF_LINES, "")): TextSelector(),
-                vol.Required(
-                    CONF_UPCOMING, default=opts.get(CONF_UPCOMING, DEFAULT_UPCOMING)
-                ): NumberSelector(
-                    NumberSelectorConfig(min=1, max=30, step=1, mode=NumberSelectorMode.BOX)
-                ),
-                vol.Required(
-                    CONF_LINE_SENSORS, default=opts.get(CONF_LINE_SENSORS, DEFAULT_LINE_SENSORS)
-                ): BooleanSelector(),
-                vol.Required(
-                    CONF_FALLBACK, default=opts.get(CONF_FALLBACK, DEFAULT_FALLBACK)
-                ): BooleanSelector(),
-                vol.Required(
-                    CONF_NIGHT_PAUSE, default=opts.get(CONF_NIGHT_PAUSE, DEFAULT_NIGHT_PAUSE)
-                ): BooleanSelector(),
-                vol.Optional(
-                    CONF_LINE_NAMES, default=opts.get(CONF_LINE_NAMES, "")
-                ): TextSelector(),
-            }
+            return self.async_create_entry(
+                data={
+                    **user_input,
+                    CONF_UPCOMING: int(user_input[CONF_UPCOMING]),
+                    CONF_LINES: user_input.get(CONF_LINES, ""),
+                    CONF_LINE_NAMES: user_input.get(CONF_LINE_NAMES, ""),
+                }
+            )
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                OPTIONS_SCHEMA, self.config_entry.options
+            ),
         )
-        return self.async_show_form(step_id="init", data_schema=schema)

@@ -4,17 +4,23 @@
       "user": {
         "title": "Търсене на спирка",
         "description": "Напиши част от името на спирката или остави полето празно, за да видиш спирките около дома.",
-        "data": { "query": "Име на спирка" }
+        "data": {
+          "query": "Име на спирка"
+        }
       },
       "stop": {
         "title": "Избор на спирка",
         "description": "Спирките обикновено са по две, по една за всяка посока. Посоката е в името.",
-        "data": { "stop": "Спирка" }
+        "data": {
+          "stop": "Спирка"
+        }
       },
       "pair": {
         "title": "Резервен източник",
-        "description": "Същата спирка в livetransport.eu, която се ползва, когато varnatraffic.com не работи. С ✓ е отбелязано точното съвпадение по код за {stop}. Избери —, за да ползваш само varnatraffic.",
-        "data": { "pair": "Спирка в livetransport" }
+        "description": "Същата спирка в livetransport.eu, която се ползва, когато varnatraffic.com не работи. С ✓ е отбелязано точното съвпадение по код за {stop}. Ако няма ✓, провери посоката в името: най-близката спирка често е отсрещната. Избери —, за да ползваш само varnatraffic.",
+        "data": {
+          "pair": "Спирка в livetransport"
+        }
       }
     },
     "error": {
@@ -23,7 +29,8 @@
       "livetransport_unreachable": "livetransport.eu не отговаря и в момента не може да се свърже резервен източник. Можеш да продължиш без него."
     },
     "abort": {
-      "already_configured": "Тази спирка вече е добавена."
+      "already_configured": "Тази спирка вече е добавена.",
+      "reconfigure_successful": "Резервната спирка е запазена."
     }
   },
   "options": {
@@ -48,9 +55,15 @@
   },
   "entity": {
     "sensor": {
-      "next_departure": { "name": "Следващ автобус" },
-      "next_departure_minutes": { "name": "Следващ автобус след" },
-      "line": { "name": "Линия {line}" },
+      "next_departure": {
+        "name": "Следващ автобус"
+      },
+      "next_departure_minutes": {
+        "name": "Следващ автобус след"
+      },
+      "line": {
+        "name": "Линия {line}"
+      },
       "data_source": {
         "name": "Източник на данни",
         "state": {

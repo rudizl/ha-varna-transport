@@ -6,7 +6,7 @@ from datetime import time, timedelta
 from typing import Final
 
 DOMAIN: Final = "varna_transport"
-VERSION: Final = "0.1.1"
+VERSION: Final = "0.2.0"
 
 USER_AGENT: Final = f"ha-varna-transport/{VERSION} (+https://github.com/rudizl/ha-varna-transport)"
 
@@ -43,10 +43,19 @@ INTERVAL_NIGHT: Final = timedelta(minutes=15)
 NIGHT_START: Final = time(0, 30)
 NIGHT_END: Final = time(4, 45)
 
-# Failover: after this many consecutive failures the primary source is
-# skipped for PRIMARY_RETRY, then tried again.
-FAILURES_BEFORE_FAILOVER: Final = 3
+# Failover: once varnatraffic has failed for this long without a single
+# success (across all stops), it is skipped for PRIMARY_RETRY. Counting time
+# instead of requests keeps the rule the same for one stop or ten.
+FAILOVER_AFTER: Final = timedelta(seconds=60)
 PRIMARY_RETRY: Final = timedelta(minutes=5)
+
+# When every source fails, poll less and less often.
+BACKOFF: Final = (timedelta(seconds=60), timedelta(minutes=2), timedelta(minutes=5))
+
+# livetransport board size; larger when only some lines are shown, so a
+# line filter still finds its buses on a busy stop.
+LT_LIMIT: Final = 30
+LT_LIMIT_FILTERED: Final = 60
 
 REQUEST_TIMEOUT: Final = 15
 
