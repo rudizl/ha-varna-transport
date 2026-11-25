@@ -1,0 +1,14 @@
+{
+  "domain": "varna_transport",
+  "name": "Varna Transport",
+  "codeowners": [
+    "@rudizl"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/rudizl/ha-varna-transport",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/rudizl/ha-varna-transport/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

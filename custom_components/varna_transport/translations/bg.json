@@ -1,0 +1,63 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Търсене на спирка",
+        "description": "Напиши част от името на спирката или остави полето празно, за да видиш спирките около дома.",
+        "data": { "query": "Име на спирка" }
+      },
+      "stop": {
+        "title": "Избор на спирка",
+        "description": "Спирките обикновено са по две, по една за всяка посока. Посоката е в името.",
+        "data": { "stop": "Спирка" }
+      },
+      "pair": {
+        "title": "Резервен източник",
+        "description": "Същата спирка в livetransport.eu, която се ползва, когато varnatraffic.com не работи. С ✓ е отбелязано точното съвпадение по код за {stop}. Избери —, за да ползваш само varnatraffic.",
+        "data": { "pair": "Спирка в livetransport" }
+      }
+    },
+    "error": {
+      "cannot_connect": "varnatraffic.com не отговаря. Опитай пак след малко.",
+      "no_stops": "Няма намерени спирки.",
+      "livetransport_unreachable": "livetransport.eu не отговаря и в момента не може да се свърже резервен източник. Можеш да продължиш без него."
+    },
+    "abort": {
+      "already_configured": "Тази спирка вече е добавена."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Настройки на спирката",
+        "data": {
+          "lines": "Линии за показване",
+          "upcoming": "Брой курсове в атрибута с таблото",
+          "line_sensors": "Отделен сензор за всяка линия",
+          "fallback": "Резервен източник livetransport.eu",
+          "night_pause": "През нощта (00:30–04:45) проверявай на 15 минути",
+          "line_names": "Допълнителни имена на линии"
+        },
+        "data_description": {
+          "lines": "Разделени със запетая, например 9, 109, 14а. Празно означава всички линии.",
+          "line_sensors": "Изисква попълнени линии отгоре.",
+          "line_names": "За вътрешни номера, които varnatraffic не показва, например 219=209б."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "next_departure": { "name": "Следващ автобус" },
+      "next_departure_minutes": { "name": "Следващ автобус след" },
+      "line": { "name": "Линия {line}" },
+      "data_source": {
+        "name": "Източник на данни",
+        "state": {
+          "varnatraffic": "varnatraffic.com",
+          "livetransport": "livetransport.eu"
+        }
+      }
+    }
+  }
+}

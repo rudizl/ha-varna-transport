@@ -1,0 +1,438 @@
+{
+    "liveData": [
+        {
+            "device": "8566_2",
+            "line": 12,
+            "currentLines": [
+                12
+            ],
+            "allLines": [
+                12
+            ],
+            "virtual": false,
+            "arriveTime": "15:40",
+            "arriveIn": "-",
+            "direction": 1,
+            "distanceLeft": "-",
+            "state": 0,
+            "busState": 1,
+            "deviceKind": 0,
+            "position": {
+                "lat": 43.1747551,
+                "lon": 27.8874454
+            },
+            "extrasFlags": 3,
+            "lastComm": 180
+        },
+        {
+            "device": "302_2",
+            "line": 88,
+            "currentLines": [
+                88
+            ],
+            "allLines": [
+                88
+            ],
+            "virtual": false,
+            "arriveTime": "15:40",
+            "arriveIn": "-",
+            "direction": 1,
+            "distanceLeft": "-",
+            "state": 0,
+            "busState": 1,
+            "deviceKind": 1,
+            "position": {
+                "lat": 43.18133,
+                "lon": 27.8984451
+            },
+            "extrasFlags": 3,
+            "lastComm": 180
+        },
+        {
+            "device": "8606_2",
+            "line": 700,
+            "currentLines": [
+                46,
+                17
+            ],
+            "allLines": [
+                46,
+                17
+            ],
+            "virtual": true,
+            "arriveTime": "15:57",
+            "delay": "+1:31",
+            "arriveIn": "24:47",
+            "direction": 1,
+            "distanceLeft": "9.4км.",
+            "state": 0,
+            "busState": 1,
+            "deviceKind": 0,
+            "position": {
+                "lat": 43.1516457,
+                "lon": 27.8874378
+            },
+            "extrasFlags": 3,
+            "lastComm": 72
+        }
+    ],
+    "schedule": [
+        {
+            "line": 12,
+            "data": [
+                {
+                    "text": "15:40",
+                    "device": "8566_2"
+                },
+                {
+                    "text": "15:55"
+                },
+                {
+                    "text": "16:10"
+                },
+                {
+                    "text": "16:25"
+                },
+                {
+                    "text": "16:40"
+                },
+                {
+                    "text": "16:55"
+                },
+                {
+                    "text": "17:10"
+                },
+                {
+                    "text": "17:30"
+                },
+                {
+                    "text": "17:40"
+                },
+                {
+                    "text": "17:55"
+                },
+                {
+                    "text": "18:10"
+                },
+                {
+                    "text": "18:25"
+                },
+                {
+                    "text": "18:40"
+                },
+                {
+                    "text": "18:55"
+                },
+                {
+                    "text": "19:10"
+                },
+                {
+                    "text": "19:25"
+                },
+                {
+                    "text": "19:40"
+                },
+                {
+                    "text": "19:55"
+                },
+                {
+                    "text": "20:10"
+                },
+                {
+                    "text": "20:25"
+                },
+                {
+                    "text": "20:40"
+                },
+                {
+                    "text": "20:55"
+                },
+                {
+                    "text": "21:10"
+                },
+                {
+                    "text": "21:25"
+                },
+                {
+                    "text": "21:45"
+                },
+                {
+                    "text": "22:05"
+                }
+            ]
+        },
+        {
+            "line": 17,
+            "data": [
+                {
+                    "text": "15:57",
+                    "device": "8606_2",
+                    "virtual": true
+                },
+                {
+                    "text": "19:30",
+                    "virtual": true
+                },
+                {
+                    "text": "20:05"
+                },
+                {
+                    "text": "20:25",
+                    "virtual": true
+                },
+                {
+                    "text": "20:42",
+                    "virtual": true
+                },
+                {
+                    "text": "20:55"
+                },
+                {
+                    "text": "21:20"
+                },
+                {
+                    "text": "21:25",
+                    "virtual": true
+                },
+                {
+                    "text": "21:57",
+                    "virtual": true
+                },
+                {
+                    "text": "22:15"
+                },
+                {
+                    "text": "22:55"
+                },
+                {
+                    "text": "23:42",
+                    "virtual": true
+                }
+            ]
+        },
+        {
+            "line": 117,
+            "data": [
+                {
+                    "text": "16:13"
+                },
+                {
+                    "text": "16:36",
+                    "virtual": true
+                },
+                {
+                    "text": "16:44",
+                    "virtual": true
+                },
+                {
+                    "text": "17:03"
+                },
+                {
+                    "text": "17:18"
+                },
+                {
+                    "text": "17:36",
+                    "virtual": true
+                },
+                {
+                    "text": "17:53"
+                },
+                {
+                    "text": "18:19",
+                    "virtual": true
+                },
+                {
+                    "text": "18:23"
+                },
+                {
+                    "text": "18:36",
+                    "virtual": true
+                },
+                {
+                    "text": "18:54",
+                    "virtual": true
+                },
+                {
+                    "text": "19:13"
+                },
+                {
+                    "text": "19:23"
+                }
+            ]
+        },
+        {
+            "line": 46,
+            "data": [
+                {
+                    "text": "15:57",
+                    "device": "8606_2",
+                    "virtual": true
+                },
+                {
+                    "text": "16:01"
+                },
+                {
+                    "text": "16:44",
+                    "virtual": true
+                },
+                {
+                    "text": "17:01"
+                },
+                {
+                    "text": "17:36"
+                },
+                {
+                    "text": "18:19",
+                    "virtual": true
+                },
+                {
+                    "text": "18:36"
+                },
+                {
+                    "text": "18:54",
+                    "virtual": true
+                },
+                {
+                    "text": "19:26"
+                },
+                {
+                    "text": "20:06"
+                },
+                {
+                    "text": "20:36"
+                },
+                {
+                    "text": "20:42",
+                    "virtual": true
+                },
+                {
+                    "text": "21:57",
+                    "virtual": true
+                },
+                {
+                    "text": "22:26"
+                },
+                {
+                    "text": "23:42",
+                    "virtual": true
+                }
+            ]
+        },
+        {
+            "line": 55,
+            "data": [
+                {
+                    "text": "17:36"
+                }
+            ]
+        },
+        {
+            "line": 60,
+            "data": [
+                {
+                    "text": "16:36",
+                    "virtual": true
+                },
+                {
+                    "text": "17:36",
+                    "virtual": true
+                },
+                {
+                    "text": "18:36",
+                    "virtual": true
+                },
+                {
+                    "text": "19:30",
+                    "virtual": true
+                },
+                {
+                    "text": "20:25",
+                    "virtual": true
+                },
+                {
+                    "text": "21:25",
+                    "virtual": true
+                }
+            ]
+        },
+        {
+            "line": 88,
+            "data": [
+                {
+                    "text": "15:40",
+                    "device": "302_2"
+                },
+                {
+                    "text": "15:55"
+                },
+                {
+                    "text": "16:10"
+                },
+                {
+                    "text": "16:25"
+                },
+                {
+                    "text": "16:40"
+                },
+                {
+                    "text": "16:55"
+                },
+                {
+                    "text": "17:10"
+                },
+                {
+                    "text": "17:25"
+                },
+                {
+                    "text": "17:40"
+                },
+                {
+                    "text": "18:00"
+                },
+                {
+                    "text": "18:15"
+                },
+                {
+                    "text": "18:30"
+                },
+                {
+                    "text": "18:45"
+                },
+                {
+                    "text": "19:00"
+                },
+                {
+                    "text": "19:15"
+                },
+                {
+                    "text": "19:30"
+                },
+                {
+                    "text": "19:45"
+                },
+                {
+                    "text": "20:00"
+                },
+                {
+                    "text": "20:15"
+                },
+                {
+                    "text": "20:30"
+                },
+                {
+                    "text": "20:45"
+                },
+                {
+                    "text": "21:00"
+                },
+                {
+                    "text": "21:30"
+                }
+            ]
+        }
+    ],
+    "commLostDevs": {
+        "8566_2": 7,
+        "302_2": 6
+    }
+}

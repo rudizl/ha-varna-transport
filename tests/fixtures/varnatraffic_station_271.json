@@ -1,0 +1,111 @@
+{
+    "liveData": [
+        {
+            "device": "8563_2",
+            "line": 109,
+            "currentLines": [
+                109
+            ],
+            "allLines": [
+                109
+            ],
+            "virtual": false,
+            "arriveTime": "16:05",
+            "delay": "+2:41",
+            "arriveIn": "7:42",
+            "direction": 1,
+            "distanceLeft": "3.1км.",
+            "state": 0,
+            "busState": 0,
+            "deviceKind": 0,
+            "position": {
+                "lat": 43.2555122,
+                "lon": 28.0289783
+            },
+            "extrasFlags": 3,
+            "lastComm": 22
+        },
+        {
+            "device": "8570_2",
+            "line": 9,
+            "currentLines": [
+                9
+            ],
+            "allLines": [
+                9
+            ],
+            "virtual": false,
+            "arriveTime": "16:32",
+            "delay": "-2:15",
+            "arriveIn": "31:29",
+            "direction": 1,
+            "distanceLeft": "~16км.",
+            "state": 0,
+            "busState": 0,
+            "deviceKind": 0,
+            "position": {
+                "lat": 43.2006721,
+                "lon": 27.90665
+            },
+            "extrasFlags": 3,
+            "lastComm": 96
+        }
+    ],
+    "schedule": [
+        {
+            "line": 9,
+            "data": [
+                {
+                    "text": "16:32",
+                    "device": "8570_2"
+                },
+                {
+                    "text": "17:32"
+                },
+                {
+                    "text": "18:32"
+                },
+                {
+                    "text": "19:32"
+                },
+                {
+                    "text": "20:42"
+                },
+                {
+                    "text": "21:42"
+                }
+            ]
+        },
+        {
+            "line": 109,
+            "data": [
+                {
+                    "text": "16:05",
+                    "device": "8563_2"
+                },
+                {
+                    "text": "16:50"
+                },
+                {
+                    "text": "17:35"
+                },
+                {
+                    "text": "18:20"
+                },
+                {
+                    "text": "19:10"
+                },
+                {
+                    "text": "20:10"
+                },
+                {
+                    "text": "21:15"
+                },
+                {
+                    "text": "22:15"
+                }
+            ]
+        }
+    ],
+    "commLostDevs": {}
+}
