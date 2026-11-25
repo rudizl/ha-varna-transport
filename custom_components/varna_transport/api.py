@@ -57,6 +57,14 @@ _LT_STATUS_ON_TRIP = 1
 _LT_STATUS_ON_PREVIOUS_TRIP = 2
 _LT_STATUS_CANCELLED = 3
 
+# varnatraffic extrasFlags bits, as named in its own front end.
+_VT_FEATURES = (
+    (1, "air_conditioning"),
+    (2, "wheelchair"),
+    (4, "blind_assistance"),
+    (8, "toilet"),
+)
+
 # varnatraffic: a vehicle silent for longer than this is not "live".
 _VT_MAX_SILENCE = 300
 # Schedule times are read as the matching clock time in this window.
@@ -140,6 +148,7 @@ class Departure:
     destination: str | None = None
     vehicle: str | None = None
     distance: int | None = None  # metres to the stop
+    features: list[str] | None = None  # vehicle equipment, varnatraffic only
 
     def __post_init__(self) -> None:
         self.expected = _local(self.expected)
@@ -267,6 +276,13 @@ def _parse_distance(text: Any) -> int | None:
     except ValueError:
         return None
     return round(value * 1000) if match[2] == "км" else round(value)
+
+
+def _features(flags: Any) -> list[str] | None:
+    """extrasFlags bitmask -> ["air_conditioning", "wheelchair", ...]."""
+    if not isinstance(flags, int) or isinstance(flags, bool) or flags <= 0:
+        return None
+    return [name for bit, name in _VT_FEATURES if flags & bit] or None
 
 
 def _fleet_number(device: Any) -> str | None:
@@ -438,6 +454,7 @@ def _varnatraffic_departures(
                     live=live,
                     vehicle=_fleet_number(device),
                     distance=_parse_distance(item.get("distanceLeft")),
+                    features=_features(item.get("extrasFlags")),
                     source=SOURCE_VARNATRAFFIC,
                 )
             )

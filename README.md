@@ -42,6 +42,9 @@ Add each stop and direction separately. Each one becomes a device.
   vehicle: "8563"     # fleet number
   distance: 3100      # metres to the stop (varnatraffic only)
   destination: null   # headsign (livetransport only)
+  features:           # vehicle equipment (varnatraffic only)
+    - air_conditioning
+    - wheelchair      # also blind_assistance, toilet
 ```
 
 - `live: false` with a `vehicle` means a bus is assigned but not yet on this trip (waiting at the terminus, or still on its previous trip). The time is the timetable plus any delay carried over.
