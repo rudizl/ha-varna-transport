@@ -78,6 +78,8 @@ def test_varnatraffic_station_102():
     combined = [d for d in deps if d.vehicle == "8606"]
     assert sorted(d.line for d in combined) == ["17", "46"]
     assert all(d.live and d.delay == 91 and d.distance == 9400 for d in combined)
+    # extrasFlags 3 = air conditioning + accessible for wheelchairs.
+    assert combined[0].features == ["air_conditioning", "wheelchair"]
     assert combined[0].expected == now + timedelta(minutes=24, seconds=47)
 
     # Waiting at the terminus: assigned bus, no live countdown.
@@ -91,6 +93,23 @@ def test_varnatraffic_station_102():
 
     # One format for every timestamp: Varna time, whole seconds.
     assert all(d.expected.tzinfo == TZ and d.expected.microsecond == 0 for d in deps)
+
+
+@pytest.mark.parametrize(
+    ("flags", "expected"),
+    [
+        (0, None),
+        (None, None),
+        (True, None),
+        (1, ["air_conditioning"]),
+        (15, ["air_conditioning", "wheelchair", "blind_assistance", "toilet"]),
+        (16, None),
+    ],
+)
+def test_features(flags, expected):
+    from custom_components.varna_transport.api import _features
+
+    assert _features(flags) == expected
 
 
 def test_varnatraffic_station_271():
