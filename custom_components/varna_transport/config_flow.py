@@ -27,6 +27,7 @@ import voluptuous as vol
 
 from .api import Stop, TransportError
 from .const import (
+    CONF_ENRICH,
     CONF_FALLBACK,
     CONF_LATITUDE,
     CONF_LINE_NAMES,
@@ -38,6 +39,7 @@ from .const import (
     CONF_STOP_NAME,
     CONF_UPCOMING,
     CONF_VT_STOP_ID,
+    DEFAULT_ENRICH,
     DEFAULT_FALLBACK,
     DEFAULT_LINE_SENSORS,
     DEFAULT_NIGHT_PAUSE,
@@ -199,6 +201,7 @@ class VarnaTransportConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_LINES: "",
                 CONF_UPCOMING: DEFAULT_UPCOMING,
                 CONF_FALLBACK: DEFAULT_FALLBACK,
+                CONF_ENRICH: DEFAULT_ENRICH,
                 CONF_NIGHT_PAUSE: DEFAULT_NIGHT_PAUSE,
                 CONF_LINE_SENSORS: DEFAULT_LINE_SENSORS,
                 CONF_LINE_NAMES: "",
@@ -221,6 +224,7 @@ OPTIONS_SCHEMA = vol.Schema(
         ),
         vol.Required(CONF_LINE_SENSORS, default=DEFAULT_LINE_SENSORS): BooleanSelector(),
         vol.Required(CONF_FALLBACK, default=DEFAULT_FALLBACK): BooleanSelector(),
+        vol.Required(CONF_ENRICH, default=DEFAULT_ENRICH): BooleanSelector(),
         vol.Required(CONF_NIGHT_PAUSE, default=DEFAULT_NIGHT_PAUSE): BooleanSelector(),
         vol.Optional(CONF_LINE_NAMES): TextSelector(),
     }

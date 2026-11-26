@@ -9,6 +9,9 @@ The integration reads [varnatraffic.com](https://varnatraffic.com). When that si
 
 ## Installation
 
+Requires Home Assistant 2025.3 or newer (2026.3 or newer to show the integration icon).
+
+
 1. In HACS, open **Custom repositories** and add `https://github.com/rudizl/ha-varna-transport` as an **Integration**.
 2. Install **Varna Transport** and restart Home Assistant.
 3. Go to **Settings → Devices & services → Add integration → Varna Transport**.
@@ -60,6 +63,7 @@ Add each stop and direction separately. Each one becomes a device.
 - **Departures in the board attribute**: length of `upcoming` (default 10).
 - **One sensor per line**: adds a sensor for each line above.
 - **Fall back to livetransport.eu**: on by default.
+- **Fill in planned buses from livetransport.eu**: on by default. varnatraffic only knows which bus runs a trip once it has started; for later trips it shows the timetable alone. livetransport knows the bus planned for them and the delay it carries from its current trip, so those rows get a `vehicle`, a `delay` and a `destination` (still `live: false`). livetransport is asked at most every 3 minutes per stop, and if it fails the varnatraffic board is shown as it is.
 - **Poll every 15 minutes at night**: between 00:30 and 04:45, when no city lines run.
 - **Extra line names**: varnatraffic uses internal ids. Most are mapped from its line list (114 → 14а, 1018 → 18а). For seasonal lines it does not list, add pairs such as `219=209б` (this one is built in).
 
@@ -94,6 +98,10 @@ sequence:
 Neither site offers a public API. The integration uses the same endpoints as their web pages. It sends an honest `User-Agent` and polls gently. livetransport.eu is run by one person, so it gets the longer interval and is only used as a fallback. If either site asks for this to stop, it will.
 
 This project is not affiliated with Gradski Transport, TASRUD, MapSoft or livetransport.eu.
+
+## Releases
+
+See [CHANGELOG.md](CHANGELOG.md). Releases are tagged `vX.Y.Z`; HACS shows them as updates.
 
 ## Development
 

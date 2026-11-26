@@ -6,7 +6,7 @@ from datetime import time, timedelta
 from typing import Final
 
 DOMAIN: Final = "varna_transport"
-VERSION: Final = "0.2.1"
+VERSION: Final = "0.3.0"
 
 USER_AGENT: Final = f"ha-varna-transport/{VERSION} (+https://github.com/rudizl/ha-varna-transport)"
 
@@ -28,17 +28,22 @@ CONF_FALLBACK: Final = "fallback"
 CONF_NIGHT_PAUSE: Final = "night_pause"
 CONF_LINE_SENSORS: Final = "line_sensors"
 CONF_LINE_NAMES: Final = "line_names"
+CONF_ENRICH: Final = "enrich"
 
 DEFAULT_UPCOMING: Final = 10
 DEFAULT_FALLBACK: Final = True
 DEFAULT_NIGHT_PAUSE: Final = True
 DEFAULT_LINE_SENSORS: Final = False
+DEFAULT_ENRICH: Final = True
 
 # Polling. varnatraffic refreshes its own page every 5 s; livetransport is a
 # one-person hobby project, so it gets a gentler interval.
 INTERVAL_VARNATRAFFIC: Final = timedelta(seconds=30)
 INTERVAL_LIVETRANSPORT: Final = timedelta(seconds=60)
 INTERVAL_NIGHT: Final = timedelta(minutes=15)
+# Enriching a varnatraffic board from livetransport: these are trips minutes
+# or hours ahead, so a slow refresh is enough and keeps the load small.
+INTERVAL_ENRICH: Final = timedelta(minutes=3)
 
 NIGHT_START: Final = time(0, 30)
 NIGHT_END: Final = time(4, 45)

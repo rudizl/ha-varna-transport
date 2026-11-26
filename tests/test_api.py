@@ -15,6 +15,7 @@ from custom_components.varna_transport.api import (
     _parse_clock,
     _parse_distance,
     _parse_signed_mmss,
+    enrich,
     normalize_line,
     parse_line_names,
     parse_livetransport,
@@ -232,3 +233,69 @@ def test_version_matches_manifest():
         (Path(__file__).parents[1] / "custom_components/varna_transport/manifest.json").read_text()
     )
     assert manifest["version"] == VERSION
+
+
+def test_enrich_pairs_by_line_and_time():
+    from custom_components.varna_transport.api import Departure, StopBoard
+
+    t = datetime(2026, 11, 25, 16, 0, tzinfo=UTC)
+    vt = StopBoard(
+        source="varnatraffic",
+        departures=[
+            Departure(line="109", expected=t, scheduled=t, source="varnatraffic"),
+            Departure(
+                line="109",
+                expected=t + timedelta(minutes=45),
+                scheduled=t + timedelta(minutes=45),
+                source="varnatraffic",
+            ),
+            Departure(
+                line="9",
+                expected=t + timedelta(minutes=10),
+                scheduled=t + timedelta(minutes=10),
+                source="varnatraffic",
+            ),
+        ],
+    )
+    lt = StopBoard(
+        source="livetransport",
+        departures=[
+            # Same trip, livetransport's timetable 2 minutes later.
+            Departure(
+                line="109",
+                expected=t,
+                scheduled=t + timedelta(minutes=2),
+                delay=300,
+                vehicle="0229",
+                destination="ЖП Гара",
+                source="livetransport",
+            ),
+            # Same line but 20 minutes away: a different trip, not paired.
+            Departure(
+                line="9",
+                expected=t,
+                scheduled=t + timedelta(minutes=30),
+                delay=0,
+                vehicle="9611",
+                source="livetransport",
+            ),
+        ],
+    )
+    out = enrich(vt, lt).departures
+    first = next(d for d in out if d.vehicle == "0229")
+    assert first.delay == 300 and not first.live
+    assert first.expected == first.scheduled + timedelta(seconds=300)
+    assert first.destination == "ЖП Гара"
+    assert next(d for d in out if d.line == "9").vehicle is None
+    # Each livetransport row is used once: the later 109 stays as it was.
+    assert sum(1 for d in out if d.vehicle == "0229") == 1
+    assert out == sorted(out, key=lambda d: (d.expected, d.line))
+
+
+def test_same_vehicle_ignores_padding():
+    from custom_components.varna_transport.api import _same_vehicle
+
+    assert _same_vehicle("40229", "0229")
+    assert _same_vehicle("8570", "8570")
+    assert not _same_vehicle("8570", "8571")
+    assert not _same_vehicle(None, "8570")

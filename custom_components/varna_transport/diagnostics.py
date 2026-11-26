@@ -63,6 +63,8 @@ async def async_get_config_entry_diagnostics(
         "options": dict(entry.options),
         "active_source": coordinator.active_source,
         "failovers": coordinator.failovers,
+        "enrich_enabled": coordinator.enrich_enabled,
+        "enrich_error": coordinator.enrich_error,
         "update_interval": str(coordinator.update_interval),
         "last_update_success": coordinator.last_update_success,
         "health": {

@@ -20,21 +20,25 @@ from .api import (
     TransportError,
     TransportRateLimitedError,
     VarnaTrafficClient,
+    enrich,
     normalize_line,
 )
 from .const import (
     BACKOFF,
+    CONF_ENRICH,
     CONF_FALLBACK,
     CONF_LINE_NAMES,
     CONF_LINES,
     CONF_LT_STOP_ID,
     CONF_NIGHT_PAUSE,
     CONF_VT_STOP_ID,
+    DEFAULT_ENRICH,
     DEFAULT_FALLBACK,
     DEFAULT_LINE_NAMES,
     DEFAULT_NIGHT_PAUSE,
     DOMAIN,
     FAILOVER_AFTER,
+    INTERVAL_ENRICH,
     INTERVAL_LIVETRANSPORT,
     INTERVAL_NIGHT,
     INTERVAL_VARNATRAFFIC,
@@ -173,6 +177,9 @@ class VarnaTransportCoordinator(DataUpdateCoordinator[StopBoard]):
         self.active_source: str | None = None
         self.failovers = 0
         self._all_failed = 0
+        self._lt_board: StopBoard | None = None
+        self._lt_board_at: datetime | None = None
+        self.enrich_error: str | None = None
 
     @property
     def vt_stop(self) -> str | None:
@@ -185,6 +192,10 @@ class VarnaTransportCoordinator(DataUpdateCoordinator[StopBoard]):
     @property
     def fallback_enabled(self) -> bool:
         return bool(self.lt_stop) and self.config_entry.options.get(CONF_FALLBACK, DEFAULT_FALLBACK)
+
+    @property
+    def enrich_enabled(self) -> bool:
+        return bool(self.lt_stop) and self.config_entry.options.get(CONF_ENRICH, DEFAULT_ENRICH)
 
     @property
     def monitored_lines(self) -> set[str]:
@@ -214,6 +225,37 @@ class VarnaTransportCoordinator(DataUpdateCoordinator[StopBoard]):
             return await self.clients.varnatraffic.departures(self.vt_stop, self.line_names)
         limit = LT_LIMIT_FILTERED if self.monitored_lines else LT_LIMIT
         return await self.clients.livetransport.departures(self.lt_stop, limit)
+
+    async def _enrich(self, board: StopBoard, now: datetime) -> StopBoard:
+        """Add livetransport's planned vehicles and delays to a varnatraffic board.
+
+        livetransport is asked at most every INTERVAL_ENRICH; between those
+        calls the last answer is reused. A failure here never fails the
+        update: the varnatraffic board is returned as it is.
+        """
+        health = self.clients.health[SOURCE_LIVETRANSPORT]
+        due = self._lt_board_at is None or now - self._lt_board_at >= INTERVAL_ENRICH
+        if due and not health.blocked(now):
+            self._lt_board_at = now
+            try:
+                self._lt_board = await self.clients.livetransport.departures(
+                    self.lt_stop, LT_LIMIT_FILTERED
+                )
+            except TransportError as err:
+                health.failure(now, err)
+                self.enrich_error = str(err)
+                self._lt_board = None
+                _LOGGER.debug("Enrichment for %s skipped: %s", self.config_entry.title, err)
+            except Exception as err:
+                _LOGGER.exception("Unexpected error while enriching %s", self.config_entry.title)
+                self.enrich_error = repr(err)
+                self._lt_board = None
+            else:
+                health.success(now)
+                self.enrich_error = None
+        if self._lt_board is not None:
+            enrich(board, self._lt_board)
+        return board
 
     def _note_failure(self, source: str, now: datetime, err: Exception) -> None:
         health = self.clients.health[source]
@@ -253,6 +295,8 @@ class VarnaTransportCoordinator(DataUpdateCoordinator[StopBoard]):
                 continue
 
             self.clients.health[source].success(now)
+            if source == SOURCE_VARNATRAFFIC and self.enrich_enabled and not night:
+                board = await self._enrich(board, now)
             if source != self.active_source:
                 if self.active_source == SOURCE_VARNATRAFFIC:
                     self.failovers += 1

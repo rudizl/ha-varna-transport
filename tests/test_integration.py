@@ -30,6 +30,7 @@ from custom_components.varna_transport.api import (
     TransportRateLimitedError,
 )
 from custom_components.varna_transport.const import (
+    CONF_ENRICH,
     CONF_FALLBACK,
     CONF_LINE_NAMES,
     CONF_LINE_SENSORS,
@@ -94,7 +95,8 @@ def entry(unique: str = "771", **options) -> MockConfigEntry:
             CONF_LT_STOP_ID: "1080",
             CONF_STOP_NAME: VT_STOP.name if unique == "771" else f"Stop {unique}",
         },
-        options={CONF_FALLBACK: True, CONF_LINES: "", **options},
+        # Enrichment is tested on its own; elsewhere it would add livetransport calls.
+        options={CONF_FALLBACK: True, CONF_ENRICH: False, CONF_LINES: "", **options},
     )
 
 
@@ -469,3 +471,104 @@ async def test_diagnostics_probe_both_sources(hass: HomeAssistant) -> None:
         # A probe does not count as a failure of the running source.
         assert diag["health"]["livetransport"]["failures"] == "0"
         assert diag["active_source"] == "varnatraffic"
+
+
+# ---------------------------------------------------------------- enrichment
+
+
+async def test_enrichment_is_cached_and_never_fails_the_update(
+    hass: HomeAssistant, noon: FrozenDateTimeFactory
+) -> None:
+    cfg = entry(**{CONF_ENRICH: True})
+    cfg.add_to_hass(hass)
+
+    async def vt_board(*_a, **_k) -> StopBoard:
+        now = dt_util.utcnow()
+        later = now + timedelta(minutes=40)
+        return StopBoard(
+            source="varnatraffic",
+            departures=[
+                Departure(
+                    line="9",
+                    expected=now + timedelta(minutes=4),
+                    live=True,
+                    vehicle="8570",
+                    source="varnatraffic",
+                ),
+                Departure(line="109", expected=later, scheduled=later, source="varnatraffic"),
+            ],
+        )
+
+    async def lt_board(*_a, **_k) -> StopBoard:
+        now = dt_util.utcnow()
+        sched = now + timedelta(minutes=43)  # livetransport's timetable runs late
+        return StopBoard(
+            source="livetransport",
+            departures=[
+                Departure(
+                    line="9",
+                    expected=now + timedelta(minutes=5),
+                    live=True,
+                    vehicle="8570",
+                    destination="ЖП Гара",
+                    source="livetransport",
+                ),
+                Departure(
+                    line="109",
+                    expected=sched + timedelta(seconds=120),
+                    scheduled=sched,
+                    delay=120,
+                    vehicle="0229",
+                    destination="Аксаково",
+                    source="livetransport",
+                ),
+            ],
+        )
+
+    vt = AsyncMock(side_effect=vt_board)
+    lt = AsyncMock(side_effect=lt_board)
+    with (
+        patch(f"{API}.VarnaTrafficClient.departures", vt),
+        patch(f"{API}.LiveTransportClient.departures", lt),
+    ):
+        assert await hass.config_entries.async_setup(cfg.entry_id)
+        await hass.async_block_till_done()
+        upcoming = hass.states.get(NEXT).attributes["upcoming"]
+        assert upcoming[0]["destination"] == "ЖП Гара"
+        planned = upcoming[1]
+        assert (planned["vehicle"], planned["delay"], planned["live"]) == ("0229", 120, False)
+        assert planned["destination"] == "Аксаково"
+        assert hass.states.get(SOURCE).state == "varnatraffic"
+        assert lt.call_count == 1
+
+        # Polls within 3 minutes reuse the livetransport answer.
+        for _ in range(4):
+            await tick(hass, noon, 31)
+        assert vt.call_count == 5 and lt.call_count == 1
+        await tick(hass, noon, 60)
+        assert lt.call_count == 2
+
+        # livetransport down: the varnatraffic board still comes through.
+        lt.side_effect = TransportConnectionError("HTTP 520")
+        await tick(hass, noon, 181)
+        state = hass.states.get(NEXT)
+        assert state.state != "unavailable"
+        assert hass.states.get(SOURCE).state == "varnatraffic"
+        assert cfg.runtime_data.enrich_error == "HTTP 520"
+        assert state.attributes["upcoming"][1]["vehicle"] is None
+
+
+async def test_enrichment_off_means_no_livetransport_calls(hass: HomeAssistant) -> None:
+    cfg = entry(**{CONF_ENRICH: False})
+    cfg.add_to_hass(hass)
+    lt = AsyncMock()
+    with (
+        patch(
+            f"{API}.VarnaTrafficClient.departures",
+            AsyncMock(return_value=board("varnatraffic", ("9", 5, False))),
+        ),
+        patch(f"{API}.LiveTransportClient.departures", lt),
+    ):
+        assert await hass.config_entries.async_setup(cfg.entry_id)
+        await hass.async_block_till_done()
+    lt.assert_not_called()
