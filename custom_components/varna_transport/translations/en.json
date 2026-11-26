@@ -43,12 +43,14 @@
           "line_sensors": "One sensor per line",
           "fallback": "Fall back to livetransport.eu",
           "night_pause": "Poll every 15 minutes at night (00:30–04:45)",
-          "line_names": "Extra line names"
+          "line_names": "Extra line names",
+          "enrich": "Fill in planned buses from livetransport.eu"
         },
         "data_description": {
           "lines": "Comma separated, e.g. 9, 109, 14a. Empty shows all lines.",
           "line_sensors": "Needs the lines above.",
-          "line_names": "For varnatraffic ids it does not list itself, e.g. 219=209б."
+          "line_names": "For varnatraffic ids it does not list itself, e.g. 219=209б.",
+          "enrich": "For timetable rows: the bus assigned to the trip and the delay it carries, asked every 3 minutes."
         }
       }
     }

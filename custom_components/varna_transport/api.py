@@ -631,6 +631,70 @@ def parse_livetransport(data: Any, now: datetime) -> StopBoard:
     return StopBoard(source=SOURCE_LIVETRANSPORT, departures=_finish(departures, now), fetched=now)
 
 
+# livetransport's timetable runs a few minutes later than varnatraffic's for
+# the same trip (17:17 vs 17:15), so trips are paired within this window.
+ENRICH_WINDOW = timedelta(minutes=6)
+
+
+def _same_vehicle(a: str | None, b: str | None) -> bool:
+    """Fleet numbers differ in padding: varnatraffic 40229 is livetransport 0229."""
+    return bool(a and b) and a[-4:] == b[-4:]
+
+
+def enrich(primary: StopBoard, extra: StopBoard) -> StopBoard:
+    """Fill gaps in a varnatraffic board with what livetransport knows.
+
+    varnatraffic only tells which bus runs a trip once it has started; for
+    later trips it has nothing but the timetable. livetransport knows the
+    vehicle planned for them and the delay it carries from its current trip.
+
+    * Rows with a vehicle get livetransport's destination.
+    * Timetable rows without a vehicle are paired with a livetransport row of
+      the same line within ENRICH_WINDOW and get its vehicle, carried delay
+      and destination. Their time becomes timetable + delay. They stay
+      not live: nobody is counting down a GPS position for them.
+
+    The primary board is changed in place and returned.
+    """
+    used: set[int] = set()
+    by_index = list(enumerate(extra.departures))
+
+    for dep in primary.departures:
+        if dep.vehicle:
+            for i, other in by_index:
+                if (
+                    i not in used
+                    and other.line == dep.line
+                    and _same_vehicle(dep.vehicle, other.vehicle)
+                ):
+                    used.add(i)
+                    dep.destination = dep.destination or other.destination
+                    break
+
+    for dep in primary.departures:
+        if dep.vehicle or dep.live or dep.scheduled is None:
+            continue
+        best = None
+        for i, other in by_index:
+            if i in used or other.line != dep.line or not other.vehicle or other.scheduled is None:
+                continue
+            gap = abs(other.scheduled - dep.scheduled)
+            if gap <= ENRICH_WINDOW and (best is None or gap < best[0]):
+                best = (gap, i, other)
+        if best is None:
+            continue
+        _, i, other = best
+        used.add(i)
+        dep.vehicle = other.vehicle
+        dep.destination = dep.destination or other.destination
+        if other.delay is not None:
+            dep.delay = other.delay
+            dep.expected = _local(dep.scheduled + timedelta(seconds=other.delay))
+
+    primary.departures.sort(key=lambda d: (d.expected, d.line))
+    return primary
+
+
 def _finish(departures: list[Departure], now: datetime) -> list[Departure]:
     """Drop buses that have left and sort by expected time.
 
