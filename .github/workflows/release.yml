@@ -7,9 +7,22 @@ on:
   push:
     tags:
       - "v*"
+      - "[0-9]*"
+  release:
+    types: [published]
 
 permissions:
   contents: write
+
+# Tags with or without a leading v (v0.4.0 or 0.4.0).
+env:
+  TAG: ${{ github.event.release.tag_name || github.ref_name }}
+
+# A release made in the web UI fires both the tag push and the release
+# event; let only one of them run.
+concurrency:
+  group: release-${{ github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -19,16 +32,16 @@ jobs:
 
       - name: Tag must match manifest version
         run: |
-          tag="${GITHUB_REF_NAME#v}"
+          tag="${TAG#v}"
           manifest=$(python3 -c "import json;print(json.load(open('custom_components/varna_transport/manifest.json'))['version'])")
           if [ "$tag" != "$manifest" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match manifest version $manifest"
+            echo "::error::Tag $TAG does not match manifest version $manifest"
             exit 1
           fi
 
       - name: Notes from CHANGELOG.md
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="${TAG#v}"
           awk -v v="## $version" '
             $0 == v {on=1; next}
             /^## / && on {exit}
@@ -45,8 +58,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # A release made in the web UI already exists: only fill in its notes.
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release edit "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TAG" --notes-file notes.md
           else
-            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+            gh release create "$TAG" --title "$TAG" --notes-file notes.md --verify-tag
           fi
